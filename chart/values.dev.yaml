@@ -1,0 +1,20 @@
+replicas: 1
+
+image:
+  repository: ko.local/deviser
+  tag: latest
+  pullPolicy: Never
+
+config:
+  DEBUG: "true"
+
+secret:
+  DB_URL: "postgres://test:test@postgres.demo-system.svc.cluster.local:5432/testdb?sslmode=disable"
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi

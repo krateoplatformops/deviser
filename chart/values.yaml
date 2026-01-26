@@ -1,0 +1,45 @@
+namespace: demo-system
+name: deviser
+
+replicas: 3
+
+image:
+  repository: ghcr.io/krateoplatformops/deviser
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+  automount: false
+
+service:
+  port: 8081
+
+config:
+  DEBUG: "false"
+  DB_READY_TIMEOUT: "2m"
+  DB_PARTITIONS_DAYS: "7"
+  PORT: "8081"
+
+secret:
+  DB_URL: "postgres://produser:prodpass@postgres.demo-system.svc.cluster.local:5432/proddb?sslmode=disable"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+probes:
+  readiness:
+    path: /readyz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  liveness:
+    path: /livez
+    initialDelaySeconds: 10
+    periodSeconds: 15
+

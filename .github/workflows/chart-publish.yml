@@ -1,0 +1,66 @@
+name: Publish Helm Chart
+
+on:
+  push:
+    branches:
+      - main 
+
+jobs:
+  publish-chart:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout repository
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      # Setup Helm
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.12.0
+
+      # Lint chart
+      - name: Lint Helm chart
+        run: helm lint ./chart
+
+      # Read chart name and version
+      - name: Get chart info
+        id: chart
+        run: |
+          CHART_NAME=$(yq e '.name' chart/Chart.yaml)
+          CHART_VERSION=$(yq e '.version' chart/Chart.yaml)
+          echo "chart_name=$CHART_NAME" >> $GITHUB_OUTPUT
+          echo "chart_version=$CHART_VERSION" >> $GITHUB_OUTPUT
+
+      # Package chart
+      - name: Package Helm chart
+        run: |
+          mkdir -p ./charts
+          helm package ./chart --destination ./charts
+
+      # Configure git
+      - name: Setup git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      # Clone gh-pages branch
+      - name: Clone gh-pages branch
+        run: |
+          git clone --branch gh-pages https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/krateoplatformops/helm-charts.git gh-pages
+
+      # Copy chart and update index
+      - name: Copy chart and update index
+        run: |
+          cp ./charts/${{ steps.chart.outputs.chart_name }}-${{ steps.chart.outputs.chart_version }}.tgz gh-pages/
+          cd gh-pages
+          helm repo index . --url https://krateoplatformops.github.io/helm-charts
+
+      # Commit & push
+      - name: Commit & push to gh-pages
+        run: |
+          cd gh-pages
+          git add .
+          git commit -m "Publish ${{ steps.chart.outputs.chart_name }} v${{ steps.chart.outputs.chart_version }} [skip ci]" || echo "No changes to commit"
+          git push origin gh-pages

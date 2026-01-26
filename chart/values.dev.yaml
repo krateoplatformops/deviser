@@ -1,7 +1,7 @@
 replicas: 1
 
 image:
-  repository: ko.local/deviser
+  repository: kind.local/deviser
   tag: latest
   pullPolicy: Never
 

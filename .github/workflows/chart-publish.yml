@@ -1,9 +1,8 @@
-name: Publish Helm Chart
+name: publish-helm-chart
 
 on:
   push:
-    branches:
-      - main 
+    tags: [ '[0-9]+.[0-9]+.[0-9]+' ] 
 
 jobs:
   publish-chart:

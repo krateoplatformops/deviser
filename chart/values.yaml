@@ -5,8 +5,10 @@ replicas: 3
 
 image:
   repository: ghcr.io/krateoplatformops/deviser
-  tag: "1.0.0"
+  tag: ""
   pullPolicy: IfNotPresent
+
+imagePullSecrets: []
 
 serviceAccount:
   create: true
@@ -23,7 +25,8 @@ config:
   PORT: "8081"
 
 secret:
-  DB_URL: "postgres://produser:prodpass@postgres.demo-system.svc.cluster.local:5432/proddb?sslmode=disable"
+  create: false
+  name: eventrouter-db
 
 resources:
   requests:

@@ -2,64 +2,73 @@ name: publish-helm-chart
 
 on:
   push:
-    tags: [ '[0-9]+.[0-9]+.[0-9]+' ] 
+    tags: [ '[0-9]+.[0-9]+.[0-9]+' ]
 
 jobs:
   publish-chart:
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout repository
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      # Setup Helm
       - name: Setup Helm
         uses: azure/setup-helm@v3
         with:
           version: v3.12.0
 
-      # Lint chart
       - name: Lint Helm chart
         run: helm lint ./chart
 
-      # Read chart name and version
       - name: Get chart info
         id: chart
         run: |
           CHART_NAME=$(yq e '.name' chart/Chart.yaml)
-          CHART_VERSION=$(yq e '.version' chart/Chart.yaml)
+          CHART_VERSION=${GITHUB_REF#refs/tags/}
           echo "chart_name=$CHART_NAME" >> $GITHUB_OUTPUT
           echo "chart_version=$CHART_VERSION" >> $GITHUB_OUTPUT
 
-      # Package chart
       - name: Package Helm chart
         run: |
           mkdir -p ./charts
-          helm package ./chart --destination ./charts
+          helm package ./chart \
+            --destination ./charts \
+            --version "${{ steps.chart.outputs.chart_version }}" \
+            --app-version "${{ steps.chart.outputs.chart_version }}"
 
-      # Configure git
+      - name: Authenticate with GitHub App
+        id: app-token
+        uses: tibdex/github-app-token@v2
+        with:
+          app_id: ${{ secrets.APP_ID }}
+          private_key: ${{ secrets.PRIVATE_KEY }}
+
       - name: Setup git
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      # Clone gh-pages branch
       - name: Clone gh-pages branch
         run: |
-          git clone --branch gh-pages https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/krateoplatformops/helm-charts.git gh-pages
+          git clone --branch gh-pages \
+            https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/krateoplatformops/helm-charts.git gh-pages
 
-      # Copy chart and update index
+      - name: Verify chart does not already exist
+        run: |
+          if [ -f "gh-pages/${{ steps.chart.outputs.chart_name }}-${{ steps.chart.outputs.chart_version }}.tgz" ]; then
+            echo "Chart already exists"
+            exit 1
+          fi
+
       - name: Copy chart and update index
         run: |
           cp ./charts/${{ steps.chart.outputs.chart_name }}-${{ steps.chart.outputs.chart_version }}.tgz gh-pages/
           cd gh-pages
           helm repo index . --url https://krateoplatformops.github.io/helm-charts
 
-      # Commit & push
       - name: Commit & push to gh-pages
         run: |
           cd gh-pages
           git add .
-          git commit -m "Publish ${{ steps.chart.outputs.chart_name }} v${{ steps.chart.outputs.chart_version }} [skip ci]" || echo "No changes to commit"
+          git commit -m "Publish ${{ steps.chart.outputs.chart_name }} v${{ steps.chart.outputs.chart_version }} [skip ci]"
           git push origin gh-pages

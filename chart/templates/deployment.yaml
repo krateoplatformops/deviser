@@ -35,13 +35,11 @@ spec:
             value: {{ $v | quote }}
           {{- end }}
 
-          {{- if .Values.secret.create }}
           - name: DB_URL
             valueFrom:
               secretKeyRef:
                 name: {{ .Values.secret.name }}
                 key: DB_URL
-          {{- end }}
 
           ports:
             - name: http

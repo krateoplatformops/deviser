@@ -27,6 +27,7 @@ experiments/**
 # Dotenv files
 .env
 **/*.env
+**/*.env.dev
 
 # Secrets files
 **/password.txt

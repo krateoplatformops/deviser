@@ -104,6 +104,39 @@ Both the versioned tag and the latest tag are loaded to match different deployme
 kind load docker-image "${IMAGE}" "${REPO}:latest" --name "${CLUSTER_NAME}"
 ```
 
+## Create the secret for DB connection
+
+> Note: In production, you should avoid using inline secrets directly in commands.
+>
+> Instead, consider using environment files, external secret management, or Helm overrides.
+
+```sh {name=db-connection-secret}
+# Ensure namespace exists
+kubectl get namespace demo-system >/dev/null 2>&1 || kubectl create namespace demo-system
+
+# Create or update DB secret
+kubectl create secret generic eventrouter-db \
+  --from-literal=DB_URL="postgres://test:test@postgres.demo-system.svc.cluster.local:5432/testdb?sslmode=disable" \
+  --namespace demo-system \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+- `eventrouter-db` → must match `.Values.secret.name` in the Helm chart
+- `--namespace demo-system` → must match `.Values.namespace`
+
+### Recommended for production
+
+- Store credentials in a `.env` file:
+- Create the secret from the file:
+
+```sh {skip=true}
+kubectl create secret generic eventrouter-db \
+  --from-env-file=dev.env \
+  --namespace demo-system
+```
+
+This avoids exposing secrets directly on the command line.
+
 ## Deploy the service using the production Helm Chart (templating only)
 
 The service is deployed using the same Helm chart used in production, but only via templating.

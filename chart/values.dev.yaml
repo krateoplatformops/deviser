@@ -1,15 +1,7 @@
 replicas: 1
 
-image:
-  repository: kind.local/deviser
-  tag: latest
-  pullPolicy: Never
-
 config:
   DEBUG: "true"
-
-secret:
-  DB_URL: "postgres://test:test@postgres.demo-system.svc.cluster.local:5432/testdb?sslmode=disable"
 
 resources:
   requests:

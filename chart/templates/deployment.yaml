@@ -6,7 +6,7 @@ metadata:
   labels:
     app.kubernetes.io/name: {{ .Values.name }}
     app.kubernetes.io/instance: {{ .Values.name }}
-    app.kubernetes.io/version: {{ .Values.image.tag }}
+    app.kubernetes.io/version: {{ default .Values.image.tag .Chart.AppVersion }}
     app.kubernetes.io/component: krateo
     app.kubernetes.io/part-of: {{ .Values.namespace }}
 spec:
@@ -19,17 +19,29 @@ spec:
       labels:
         app: {{ .Values.name }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       serviceAccountName: {{ default .Values.name .Values.serviceAccount.name }}
       containers:
         - name: {{ .Values.name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
-          envFrom:
-            - configMapRef:
-                name: {{ .Values.name }}
-            - secretRef:
-                name: {{ .Values.name }}
+          env:
+          {{- range $k, $v := .Values.config }}
+          - name: {{ $k }}
+            value: {{ $v | quote }}
+          {{- end }}
+
+          {{- if .Values.secret.create }}
+          - name: DB_URL
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.secret.name }}
+                key: DB_URL
+          {{- end }}
 
           ports:
             - name: http

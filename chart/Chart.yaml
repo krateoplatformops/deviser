@@ -2,5 +2,7 @@ apiVersion: v2
 name: deviser
 description: Helm chart for deviser service
 type: application
-version: 0.1.0
-appVersion: "latest"
+
+# Placeholder SOLO per sviluppo locale
+version: 0.0.0
+appVersion: "0.0.0"

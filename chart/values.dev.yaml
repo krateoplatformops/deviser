@@ -2,6 +2,14 @@ replicas: 1
 
 config:
   DEBUG: "true"
+  DB_PORT: "5432"
+  DB_HOST: postgres.demo-system.svc.cluster.local
+  DB_NAME: testdb
+  DB_PARAMS: "sslmode=disable"
+
+secret:
+  create: false
+  name: eventrouter-db
 
 resources:
   requests:

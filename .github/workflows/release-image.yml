@@ -47,13 +47,13 @@ jobs:
         with:
           push: ${{ env.DOCKER_PUSH == 'true' }}
 
-          # 🔀 Multi-arch su GitHub, single-arch in locale
+          # Multi-arch su GitHub, single-arch in locale
           platforms: ${{ env.LOCAL_KIND == 'true' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
 
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-          # 👇 FONDAMENTALE
+          # FONDAMENTALE (per DEV)
           load: ${{ env.LOCAL_KIND == 'true' }}
 
           cache-from: type=gha

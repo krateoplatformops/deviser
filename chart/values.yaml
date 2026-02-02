@@ -25,6 +25,7 @@ config:
   PORT: "8081"
 
 secret:
+  create: false
   name: eventrouter-db
 
 resources:

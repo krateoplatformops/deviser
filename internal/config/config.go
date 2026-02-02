@@ -13,6 +13,7 @@ import (
 
 	fsutil "github.com/krateoplatformops/deviser/internal/util/fs"
 	logutil "github.com/krateoplatformops/deviser/internal/util/log"
+	pgutil "github.com/krateoplatformops/deviser/internal/util/pg"
 	"github.com/krateoplatformops/plumbing/env"
 )
 
@@ -48,9 +49,33 @@ func Setup() *Config {
 		"enable or disable debug logs",
 	)
 
-	cfgDbURL := flag.String("db-url",
-		env.String("DB_URL", ""),
-		"database URL",
+	cfgDbUser := flag.String("db-user",
+		env.String("DB_USER", ""),
+		"database connection username",
+	)
+
+	cfgDbPass := flag.String("db-pass",
+		env.String("DB_PASS", ""),
+		"database connection password",
+	)
+
+	cfgDbName := flag.String("db-name",
+		env.String("DB_NAME", ""),
+		"database name",
+	)
+
+	cfgDbHost := flag.String("db-host",
+		env.String("DB_HOST", "localhost"),
+		"database host",
+	)
+	cfgDbPort := flag.Int("db-port",
+		env.Int("DB_PORT", 5432),
+		"database port",
+	)
+
+	cfgDbParams := flag.String("db-params",
+		env.String("DB_PARAMS", ""),
+		"extra database query params (es: sslmode=disable&connect_timeout=5)",
 	)
 
 	cfgDbReadyTimeout := flag.Duration("db-ready-timeout",
@@ -73,15 +98,31 @@ func Setup() *Config {
 	// Copy values
 	cfg.Port = *cfgPort
 	cfg.Debug = *cfgDebug
-	cfg.DbURL = *cfgDbURL
 	cfg.DbReadyTimeout = *cfgDbReadyTimeout
 	cfg.DbPartitionDays = *cfgDbPartitions
 
 	cfg.Log = logutil.New(serviceName, cfg.Debug)
 
-	if cfg.DbURL == "" {
-		cfg.Log.Error("DB_URL not set")
+	params, err := parseDBParams(*cfgDbParams)
+	if err != nil {
+		cfg.Log.Error("invalid DB_PARAMS", "error", err)
 		os.Exit(1)
+	}
+
+	cfg.DbURL, err = pgutil.ConnectionURL(
+		*cfgDbUser,
+		*cfgDbPass,
+		*cfgDbHost,
+		*cfgDbPort,
+		*cfgDbName,
+		params)
+	if err != nil {
+		cfg.Log.Error("unable to build DB_URL", slog.Any("err", err))
+		os.Exit(1)
+	}
+
+	if cfg.Debug {
+		cfg.Log.Debug("database connection URL", slog.String("cfg.DbURL", cfg.DbURL))
 	}
 
 	return cfg

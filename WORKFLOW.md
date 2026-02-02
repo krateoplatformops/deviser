@@ -55,7 +55,7 @@ This file acts as a single source of truth for:
 It can be reused by subsequent steps and other scripts.
 
 ```sh {name=dev-env}
-TAG="${1:-1.2.3}"
+TAG="${1:-0.0.8}"
 CLUSTER_NAME="kind"
 REPO="ghcr.io/$(git config --get remote.origin.url | sed -E 's#.*[:/](.*)/(.*)\.git#\1/\2#')"
 IMAGE="${REPO}:${TAG}"
@@ -104,7 +104,14 @@ Both the versioned tag and the latest tag are loaded to match different deployme
 kind load docker-image "${IMAGE}" "${REPO}:latest" --name "${CLUSTER_NAME}"
 ```
 
-## Create the secret for DB connection
+## Database credentials
+
+This chart expects an existing Kubernetes Secret containing the database
+credentials.
+
+### Required secret
+
+The secret **must exist before installing the chart**.
 
 > Note: In production, you should avoid using inline secrets directly in commands.
 >
@@ -116,7 +123,7 @@ kubectl get namespace demo-system >/dev/null 2>&1 || kubectl create namespace de
 
 # Create or update DB secret
 kubectl create secret generic eventrouter-db \
-  --from-literal=DB_URL="postgres://test:test@postgres.demo-system.svc.cluster.local:5432/testdb?sslmode=disable" \
+  --from-literal=DB_USER="test" --from-literal=DB_PASS="test" \
   --namespace demo-system \
   --dry-run=client -o yaml | kubectl apply -f -
 ```

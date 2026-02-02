@@ -46,6 +46,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: ${{ env.DOCKER_PUSH == 'true' }}
+          load: ${{ env.LOCAL_KIND == 'true' }}
+          no-cache: ${{ env.LOCAL_KIND == 'true' }}
 
           # Multi-arch su GitHub, single-arch in locale
           platforms: ${{ env.LOCAL_KIND == 'true' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
@@ -53,9 +55,12 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-          # FONDAMENTALE (per DEV)
-          load: ${{ env.LOCAL_KIND == 'true' }}
+          build-args: |
+            CACHEBUST=${{ github.sha }}
+            COMMIT_HASH=${{ github.sha }}
 
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Cache intelligente: usa cache GHA solo in release
+          cache-from: ${{ env.LOCAL_KIND == 'true' && '' || 'type=gha' }}
+          cache-to:   ${{ env.LOCAL_KIND == 'true' && '' || 'type=gha,mode=max' }}
+
 

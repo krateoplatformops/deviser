@@ -19,6 +19,7 @@ COPY go.sum go.sum
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 
+ARG CACHEBUST=1
 
 COPY internal/ internal/
 COPY main.go main.go

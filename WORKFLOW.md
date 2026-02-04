@@ -1,4 +1,4 @@
-# Dev Workfllow
+# Dev Workflow
 
 This document describes the local development workflow used to test the full release pipeline end-to-end before pushing a real Git tag to GitHub.
 

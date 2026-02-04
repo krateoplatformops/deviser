@@ -28,12 +28,17 @@ const (
 var assetsFS embed.FS
 
 type Config struct {
-	Port            int
-	Debug           bool
-	DbURL           string
-	DbReadyTimeout  time.Duration
-	DbPartitionDays int
-	Log             *slog.Logger
+	Port                     int
+	Debug                    bool
+	DbURL                    string
+	DbReadyTimeout           time.Duration
+	DbPartitionDays          int
+	PmMaxPartitionsSizeBytes uint64
+	PmRetentionDays          int
+	PmTriggerRatio           float64
+	PmTargetRatio            float64
+	PmDryRun                 bool
+	Log                      *slog.Logger
 }
 
 func Setup() *Config {
@@ -88,6 +93,21 @@ func Setup() *Config {
 		"partitions for the next N days",
 	)
 
+	cfgPmMaxPartitionsSizeBytes := flag.Uint64("max-partitions-size",
+		envSize("PM_MAX_PARTITIONS_SIZE", 10*GB), "maximum total size of all partitions in bytes")
+
+	cfgPmRetentionDays := flag.Int("retention-days",
+		env.Int("PM_RETENTION_DAYS", 2), "number of days to keep partitions; older partitions will be dropped")
+
+	cfgPmTriggerRatio := flag.Float64("trigger-ratio",
+		env.Float64("PM_TRIGGER_RATIO", 0.75), "fraction of MaxPartitionsSizeBytes to start cleanup")
+
+	cfgPmTargetRatio := flag.Float64("target-ratio",
+		env.Float64("PM_TARGET_RATIO", 0.60), "fraction of MaxPartitionsSizeBytes to reach after cleanup")
+
+	cfgPmDryRun := flag.Bool("dry-run",
+		env.Bool("PM_DRY_RUN", false), "if true, no partitions are dropped; actions are logged only")
+
 	flag.Usage = func() {
 		fmt.Fprintln(flag.CommandLine.Output(), "Flags:")
 		flag.PrintDefaults()
@@ -100,6 +120,11 @@ func Setup() *Config {
 	cfg.Debug = *cfgDebug
 	cfg.DbReadyTimeout = *cfgDbReadyTimeout
 	cfg.DbPartitionDays = *cfgDbPartitions
+	cfg.PmMaxPartitionsSizeBytes = *cfgPmMaxPartitionsSizeBytes
+	cfg.PmRetentionDays = *cfgPmRetentionDays
+	cfg.PmTargetRatio = *cfgPmTargetRatio
+	cfg.PmTriggerRatio = *cfgPmTriggerRatio
+	cfg.PmDryRun = *cfgPmDryRun
 
 	cfg.Log = logutil.New(serviceName, cfg.Debug)
 

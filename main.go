@@ -57,6 +57,17 @@ func main() {
 		Days: cfg.DbPartitionDays,
 	}
 
+	pm := &pg.PartitionManager{
+		Pool:                   pool,
+		Log:                    cfg.Log,
+		ParentTable:            "k8s_events",
+		RetentionDays:          cfg.PmRetentionDays,
+		MaxPartitionsSizeBytes: cfg.PmMaxPartitionsSizeBytes,
+		TriggerRatio:           cfg.PmTriggerRatio,
+		TargetRatio:            cfg.PmTargetRatio,
+		DryRun:                 cfg.PmDryRun,
+	}
+
 	err = daemon.Run(
 		cfg.Log,
 		// main service loop
@@ -77,6 +88,10 @@ func main() {
 				case <-ticker.C:
 					if err := pg.CreateDailyPartitions(ctx, &co); err != nil {
 						cfg.Log.Error("partition creation failed", slog.Any("err", err))
+					}
+
+					if err := pm.Maintain(ctx); err != nil {
+						cfg.Log.Error("partition maintenance failed", slog.Any("err", err))
 					}
 				}
 			}

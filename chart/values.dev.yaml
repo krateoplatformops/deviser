@@ -2,14 +2,24 @@ replicas: 1
 
 config:
   DEBUG: "true"
+
+  PORT: "8081"
+
+  DB_HOST: postgres.eventstack-system.svc.cluster.local
   DB_PORT: "5432"
-  DB_HOST: postgres.demo-system.svc.cluster.local
   DB_NAME: testdb
+  DB_USER: test
+  DB_PASS: test
   DB_PARAMS: "sslmode=disable"
 
-secret:
-  create: false
-  name: eventrouter-db
+  PM_MAX_PARTITIONS_SIZE: "1073741824" # 1GB
+  PM_TRIGGER_RATIO: "0.75"
+  PM_TARGET_RATIO: "0.60"
+  PM_RETENTION_DAYS: "2"
+
+
+service:
+  port: 8081
 
 resources:
   requests:

@@ -1,6 +1,6 @@
 name: deviser
 
-replicas: 3
+replicas: 1
 
 image:
   repository: ghcr.io/krateoplatformops/deviser
@@ -47,8 +47,8 @@ resources:
     cpu: 100m
     memory: 128Mi
   limits:
-    cpu: 500m
-    memory: 512Mi
+    cpu: 300m
+    memory: 256Mi
 
 probes:
   readiness:

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -155,30 +155,26 @@ func (pm *PartitionManager) listPartitions(ctx context.Context) ([]partitionInfo
 }
 
 func parsePartitionBound(bound string) (time.Time, time.Time, error) {
-
-	const layout = "2006-01-02"
-
-	// Estraggo le date
-	var from, to string
-	_, err := fmt.Sscanf(
-		bound,
-		"FOR VALUES FROM ('%s') TO ('%s')",
-		&from,
-		&to,
+	re, err := regexp.Compile(
+		`FOR VALUES FROM \('([^']+)'\) TO \('([^']+)'\)`,
 	)
 	if err != nil {
-		return time.Time{}, time.Time{}, err
+		return time.Time{}, time.Time{}, fmt.Errorf("cannot compile partiton bound regex: %w", err)
 	}
 
-	from = strings.TrimSuffix(from, "')")
-	to = strings.TrimSuffix(to, "')")
+	matches := re.FindStringSubmatch(bound)
+	if len(matches) != 3 {
+		return time.Time{}, time.Time{}, fmt.Errorf("cannot parse bound: %s", bound)
+	}
 
-	start, err := time.Parse(layout, from)
+	const layout = "2006-01-02 15:04:05-07"
+
+	start, err := time.Parse(layout, matches[1])
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}
 
-	end, err := time.Parse(layout, to)
+	end, err := time.Parse(layout, matches[2])
 	if err != nil {
 		return time.Time{}, time.Time{}, err
 	}

@@ -33,14 +33,11 @@ func WaitForPostgres(ctx context.Context, log *slog.Logger, dbURL string) (*pgxp
 			slog.String("wait", backoff.String()),
 			func() slog.Attr {
 				if deadline, ok := ctx.Deadline(); ok {
-					return slog.Duration("time_remaining", time.Until(deadline))
+					return slog.String("time_remaining", time.Until(deadline).String())
 				}
 				return slog.Any("time_remaining", "unknown")
 			}(),
 		)
-
-		log.Debug("PostgreSQL not ready yet. Retrying...",
-			slog.String("wait", backoff.String()))
 
 		select {
 		case <-time.After(backoff):

@@ -1,27 +1,142 @@
-name: deviser
+# Default values for deviser.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
 
-replicas: 1
+replicaCount: 1
 
 image:
   repository: ghcr.io/krateoplatformops/deviser
-  tag: ""
   pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
 
 imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
 
 serviceAccount:
+  # Specifies whether a service account should be created
   create: true
+  # Automatically mount a ServiceAccount's API credentials?
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
   name: ""
-  automount: false
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
 
 service:
+  type: ClusterIP
   port: 8081
 
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /livez
+    port: http
+  initialDelaySeconds: 45
+  periodSeconds: 90
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 45
+  periodSeconds: 90
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: foo
+#   secret:
+#     secretName: mysecret
+#     optional: false
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: foo
+#   mountPath: "/etc/foo"
+#   readOnly: true
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# ============================================================================
+# Application-Specific Configuration
+# ============================================================================
+
+# Secret reference for DB credentials
+# IMPORTANT: You must create this secret before deploying the chart.
+# The secret must contain: DB_USER and DB_PASS keys
+# The secret must be created in the same namespace where the chart is deployed.
+# Example:
+#   kubectl create secret generic events-stack-db \
+#     --from-literal=DB_USER=myuser \
+#     --from-literal=DB_PASS=mypass \
+#     -n namespace_name
+
+secret:
+  name: events-stack-db # Name of the Kubernetes Secret containing DB_USER and DB_PASS keys for database credentials
+
+# Application configuration environment variables
 config:
+  # Enable or disable debug logging
   DEBUG: "false"
+
   PORT: "8081"
 
-  DB_READY_TIMEOUT: "4m"
+  DB_READY_TIMEOUT: "5m"
+  DB_PARAMS: "sslmode=disable&connect_timeout=5"
 
   # Number of days ahead to create partitions
   DB_PARTITIONS_DAYS: "3"
@@ -37,26 +152,3 @@ config:
 
   # Quota target ratio
   # PM_TARGET_RATIO: "0.60"
-
-secret:
-  create: false
-  name: eventrouter-db
-
-resources:
-  requests:
-    cpu: 100m
-    memory: 128Mi
-  limits:
-    cpu: 300m
-    memory: 256Mi
-
-probes:
-  readiness:
-    path: /readyz
-    initialDelaySeconds: 45
-    periodSeconds: 90
-  liveness:
-    path: /livez
-    initialDelaySeconds: 45
-    periodSeconds: 90
-

@@ -1,13 +1,16 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.name }}
+  name: {{ include "deviser.fullname" . }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "deviser.labels" . | nindent 4 }}
 spec:
-  selector:
-    app.kubernetes.io/name: {{ .Values.name }}
-    app.kubernetes.io/instance: {{ .Release.Name }}
+  type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
       targetPort: http
-
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "deviser.selectorLabels" . | nindent 4 }}

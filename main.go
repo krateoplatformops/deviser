@@ -33,13 +33,17 @@ func main() {
 	defer pool.Close()
 	cfg.Log.Info("PostgreSQL is ready.")
 
-	sql := cfg.MustLoadSQL("schema.sql")
-	_, err = pool.Exec(rootCtx, sql)
-	if err != nil {
-		cfg.Log.Error("SQL failed",
-			slog.String("sql", sql),
-			slog.Any("err", err))
-		os.Exit(1)
+	schemas := []string{"k8s_events.schema.sql", "resources.schema.sql"}
+	for _, schema := range schemas {
+		sql := cfg.MustLoadSQL(schema)
+		_, err = pool.Exec(rootCtx, sql)
+		if err != nil {
+			cfg.Log.Error("SQL failed",
+				slog.String("schema", schema),
+				slog.String("sql", sql),
+				slog.Any("err", err))
+			os.Exit(1)
+		}
 	}
 
 	// -----------------------------

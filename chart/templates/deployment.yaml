@@ -78,7 +78,7 @@ spec:
 
           ports:
             - name: http
-              containerPort: {{ $config.PORT| default "8081" | int }}
+              containerPort: {{ $config.PORT | default "8081" | int }}
               protocol: TCP
           {{- with .Values.livenessProbe }}
           livenessProbe:

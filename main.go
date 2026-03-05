@@ -10,9 +10,9 @@ import (
 
 	"github.com/krateoplatformops/deviser/internal/config"
 	"github.com/krateoplatformops/deviser/internal/pg"
-	"github.com/krateoplatformops/deviser/internal/probes"
 	"github.com/krateoplatformops/deviser/internal/util/daemon"
-	pgutil "github.com/krateoplatformops/deviser/internal/util/pg"
+	"github.com/krateoplatformops/plumbing/pgutil"
+	"github.com/krateoplatformops/plumbing/server/probes"
 )
 
 func main() {

@@ -13,8 +13,8 @@ import (
 
 	fsutil "github.com/krateoplatformops/deviser/internal/util/fs"
 	logutil "github.com/krateoplatformops/deviser/internal/util/log"
-	pgutil "github.com/krateoplatformops/deviser/internal/util/pg"
 	"github.com/krateoplatformops/plumbing/env"
+	"github.com/krateoplatformops/plumbing/pgutil"
 )
 
 const (

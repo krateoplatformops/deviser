@@ -22,6 +22,8 @@ const (
 	defaultPartitionDays  = 7
 	defaultDbReadyTimeout = 3 * time.Minute
 	defaultDebug          = false
+	defaultSoftDeleteRetentionDays  = 30
+	defaultSoftDeletePurgeBatchSize = 1000
 )
 
 //go:embed assets/*.sql
@@ -38,6 +40,8 @@ type Config struct {
 	PmTriggerRatio           float64
 	PmTargetRatio            float64
 	PmDryRun                 bool
+	SoftDeleteRetentionDays   int
+	SoftDeletePurgeBatchSize  int
 	Log                      *slog.Logger
 }
 
@@ -108,6 +112,14 @@ func Setup() *Config {
 	cfgPmDryRun := flag.Bool("dry-run",
 		env.Bool("PM_DRY_RUN", false), "if true, no partitions are dropped; actions are logged only")
 
+	cfgSoftDeleteRetentionDays := flag.Int("soft-delete-retention-days",
+		env.Int("SOFT_DELETE_RETENTION_DAYS", defaultSoftDeleteRetentionDays),
+		"number of days to keep soft-deleted resources before hard deletion (0 disables purge)")
+
+	cfgSoftDeletePurgeBatchSize := flag.Int("soft-delete-purge-batch-size",
+		env.Int("SOFT_DELETE_PURGE_BATCH_SIZE", defaultSoftDeletePurgeBatchSize),
+		"batch size for hard deletion of soft-deleted resources")
+
 	flag.Usage = func() {
 		fmt.Fprintln(flag.CommandLine.Output(), "Flags:")
 		flag.PrintDefaults()
@@ -125,6 +137,8 @@ func Setup() *Config {
 	cfg.PmTargetRatio = *cfgPmTargetRatio
 	cfg.PmTriggerRatio = *cfgPmTriggerRatio
 	cfg.PmDryRun = *cfgPmDryRun
+	cfg.SoftDeleteRetentionDays = *cfgSoftDeleteRetentionDays
+	cfg.SoftDeletePurgeBatchSize = *cfgSoftDeletePurgeBatchSize
 
 	cfg.Log = logutil.New(serviceName, cfg.Debug)
 

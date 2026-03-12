@@ -136,3 +136,9 @@ config:
 
   # Quota target ratio
   # PM_TARGET_RATIO: "0.60"
+
+  # Number of days to keep soft-deleted resources before hard deletion (0 disables purge)
+  # SOFT_DELETE_RETENTION_DAYS
+
+  # Batch size for hard deletion of soft-deleted resources
+  # SOFT_DELETE_PURGE_BATCH_SIZE

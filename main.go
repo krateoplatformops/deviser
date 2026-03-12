@@ -60,6 +60,12 @@ func main() {
 		Tpl:  cfg.MustLoadSQLTemplate("partition.tpl.sql", "partition"),
 		Days: cfg.DbPartitionDays,
 	}
+	purgeOpts := pg.PurgeDeletedResourcesOptions{
+		Pool:          pool,
+		Log:           cfg.Log,
+		RetentionDays: cfg.SoftDeleteRetentionDays,
+		BatchSize:     cfg.SoftDeletePurgeBatchSize,
+	}
 
 	pm := &pg.PartitionManager{
 		Pool:                   pool,
@@ -83,6 +89,9 @@ func main() {
 			if err := pg.CreateDailyPartitions(ctx, &co); err != nil {
 				cfg.Log.Error("failed to create daily partitions", slog.Any("err", err))
 			}
+			if _, err := pg.PurgeDeletedResources(ctx, &purgeOpts); err != nil {
+				cfg.Log.Error("failed to purge deleted resources", slog.Any("err", err))
+			}
 
 			for {
 				select {
@@ -92,6 +101,10 @@ func main() {
 				case <-ticker.C:
 					if err := pg.CreateDailyPartitions(ctx, &co); err != nil {
 						cfg.Log.Error("partition creation failed", slog.Any("err", err))
+					}
+
+					if _, err := pg.PurgeDeletedResources(ctx, &purgeOpts); err != nil {
+						cfg.Log.Error("failed to purge deleted resources", slog.Any("err", err))
 					}
 
 					if err := pm.Maintain(ctx); err != nil {

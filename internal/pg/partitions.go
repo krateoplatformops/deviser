@@ -11,16 +11,27 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/krateoplatformops/deviser/internal/telemetry"
 )
 
 type CreateDailyPartitionsOptions struct {
-	Pool *pgxpool.Pool
-	Log  *slog.Logger
-	Tpl  *template.Template
-	Days int
+	Pool    *pgxpool.Pool
+	Log     *slog.Logger
+	Tpl     *template.Template
+	Days    int
+	Metrics *telemetry.Metrics
 }
 
-func CreateDailyPartitions(ctx context.Context, opts *CreateDailyPartitionsOptions) error {
+func CreateDailyPartitions(ctx context.Context, opts *CreateDailyPartitionsOptions) (retErr error) {
+	started := time.Now()
+	opts.Metrics.SetPartitionsEnsureDays(int64(opts.Days))
+	defer func() {
+		opts.Metrics.RecordPartitionsEnsureDuration(ctx, time.Since(started))
+		if retErr != nil {
+			opts.Metrics.IncPartitionsEnsureFailure(ctx)
+		}
+	}()
+
 	for i := 0; i < opts.Days; i++ {
 		date := time.Now().AddDate(0, 0, i).UTC()
 		partName := fmt.Sprintf("k8s_events_%04d_%02d_%02d", date.Year(), date.Month(), date.Day())

@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS k8s_events (
     namespace        TEXT NOT NULL,
     resource_kind    TEXT NOT NULL,
     resource_name    TEXT NOT NULL,
+    involved_object_uid TEXT NULL,
 
     -- Event data
     event_type       TEXT NOT NULL,

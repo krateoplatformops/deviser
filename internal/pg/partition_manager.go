@@ -10,11 +10,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/krateoplatformops/deviser/internal/telemetry"
 )
 
 type PartitionManager struct {
-	Pool *pgxpool.Pool // Connection pool to Postgres database
-	Log  *slog.Logger  // Logger for debug/info/warn/error messages
+	Pool    *pgxpool.Pool // Connection pool to Postgres database
+	Log     *slog.Logger  // Logger for debug/info/warn/error messages
+	Metrics *telemetry.Metrics
 
 	ParentTable string // Name of the parent partitioned table to manage
 
@@ -27,7 +29,14 @@ type PartitionManager struct {
 	DryRun bool // If true, no partitions are dropped; actions are logged only
 }
 
-func (pm *PartitionManager) Maintain(ctx context.Context) error {
+func (pm *PartitionManager) Maintain(ctx context.Context) (retErr error) {
+	started := time.Now()
+	defer func() {
+		pm.Metrics.RecordPartitionsMaintainDuration(ctx, time.Since(started))
+		if retErr != nil {
+			pm.Metrics.IncPartitionsMaintainFailure(ctx)
+		}
+	}()
 
 	locked, err := pm.tryLock(ctx)
 	if err != nil || !locked {
@@ -38,6 +47,12 @@ func (pm *PartitionManager) Maintain(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to list partitions: %w", err)
 	}
+	pm.Metrics.SetPartitionsTotalDiscovered(int64(len(parts)))
+	var totalBytes int64
+	for _, p := range parts {
+		totalBytes += p.size
+	}
+	pm.Metrics.SetPartitionsTotalBytes(totalBytes)
 
 	for _, p := range parts {
 		pm.Log.Debug("partition discovered",
@@ -79,6 +94,7 @@ func (pm *PartitionManager) tryLock(ctx context.Context) (bool, error) {
 func (pm *PartitionManager) dropExpired(ctx context.Context, parts []partitionInfo) error {
 
 	cutoff := time.Now().AddDate(0, 0, -pm.RetentionDays)
+	var dropped int64
 
 	for _, p := range parts {
 		if p.start.Before(cutoff) {
@@ -95,9 +111,12 @@ func (pm *PartitionManager) dropExpired(ctx context.Context, parts []partitionIn
 				if err != nil {
 					return err
 				}
+				dropped++
+				pm.Metrics.AddPartitionsBytesFreed(ctx, p.size)
 			}
 		}
 	}
+	pm.Metrics.AddPartitionsDroppedExpired(ctx, dropped)
 	return nil
 }
 
@@ -203,6 +222,7 @@ func (pm *PartitionManager) enforceQuota(ctx context.Context, parts []partitionI
 	})
 
 	var freed uint64
+	var dropped int64
 	for _, p := range parts {
 		pm.Log.Warn("dropping partition for quota",
 			slog.String("partition", p.name),
@@ -215,6 +235,8 @@ func (pm *PartitionManager) enforceQuota(ctx context.Context, parts []partitionI
 			if err != nil {
 				return err
 			}
+			dropped++
+			pm.Metrics.AddPartitionsBytesFreed(ctx, p.size)
 		}
 
 		freed += uint64(p.size)
@@ -222,6 +244,7 @@ func (pm *PartitionManager) enforceQuota(ctx context.Context, parts []partitionI
 			break
 		}
 	}
+	pm.Metrics.AddPartitionsDroppedQuota(ctx, dropped)
 
 	return nil
 }

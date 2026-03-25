@@ -142,3 +142,9 @@ config:
 
   # Batch size for hard deletion of soft-deleted resources
   # SOFT_DELETE_PURGE_BATCH_SIZE
+
+  # OpenTelemetry metrics (OTLP HTTP exporter)
+  OTEL_ENABLED: "false"
+  OTEL_EXPORT_INTERVAL: "50s"
+  # OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+  # OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: "http://otel-collector:4318/v1/metrics"

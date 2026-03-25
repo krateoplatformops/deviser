@@ -23,6 +23,11 @@ ON {{.PartitionName}} (global_uid, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_{{.PartitionName}}_resource_latest
 ON {{.PartitionName}} (cluster_name, uid, created_at DESC);
 
+-- Last event for involved object
+CREATE INDEX IF NOT EXISTS idx_{{.PartitionName}}_involved_object_latest
+ON {{.PartitionName}} (cluster_name, involved_object_uid, created_at DESC)
+WHERE involved_object_uid IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_{{.PartitionName}}_obj
 ON {{.PartitionName}} (
     namespace,

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/krateoplatformops/deviser/internal/telemetry"
 )
 
 type PurgeDeletedResourcesOptions struct {
@@ -13,9 +14,19 @@ type PurgeDeletedResourcesOptions struct {
 	Log           *slog.Logger
 	RetentionDays int
 	BatchSize     int
+	Metrics       *telemetry.Metrics
 }
 
-func PurgeDeletedResources(ctx context.Context, opts *PurgeDeletedResourcesOptions) (int64, error) {
+func PurgeDeletedResources(ctx context.Context, opts *PurgeDeletedResourcesOptions) (totalDeleted int64, retErr error) {
+	started := time.Now()
+	defer func() {
+		opts.Metrics.RecordResourcesPurgeDuration(ctx, time.Since(started))
+		opts.Metrics.AddResourcesPurgeRows(ctx, totalDeleted)
+		if retErr != nil {
+			opts.Metrics.IncResourcesPurgeFailure(ctx)
+		}
+	}()
+
 	if opts.RetentionDays <= 0 {
 		opts.Log.Debug("soft-delete purge skipped because retention is disabled", slog.Int("retention_days", opts.RetentionDays))
 		return 0, nil
@@ -27,7 +38,6 @@ func PurgeDeletedResources(ctx context.Context, opts *PurgeDeletedResourcesOptio
 	}
 
 	cutoff := time.Now().UTC().AddDate(0, 0, -opts.RetentionDays)
-	var totalDeleted int64
 
 	for {
 		result, err := opts.Pool.Exec(ctx, `

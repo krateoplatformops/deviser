@@ -18,12 +18,14 @@ import (
 )
 
 const (
-	serviceName           = "deviser"
-	defaultPartitionDays  = 7
-	defaultDbReadyTimeout = 3 * time.Minute
-	defaultDebug          = false
+	serviceName                     = "deviser"
+	defaultPartitionDays            = 7
+	defaultDbReadyTimeout           = 3 * time.Minute
+	defaultDebug                    = false
 	defaultSoftDeleteRetentionDays  = 30
 	defaultSoftDeletePurgeBatchSize = 1000
+	defaultOtelEnabled              = true
+	defaultOtelExportInterval       = 30 * time.Second
 )
 
 //go:embed assets/*.sql
@@ -40,8 +42,10 @@ type Config struct {
 	PmTriggerRatio           float64
 	PmTargetRatio            float64
 	PmDryRun                 bool
-	SoftDeleteRetentionDays   int
-	SoftDeletePurgeBatchSize  int
+	SoftDeleteRetentionDays  int
+	SoftDeletePurgeBatchSize int
+	OTelEnabled              bool
+	OTelExportInterval       time.Duration
 	Log                      *slog.Logger
 }
 
@@ -120,6 +124,14 @@ func Setup() *Config {
 		env.Int("SOFT_DELETE_PURGE_BATCH_SIZE", defaultSoftDeletePurgeBatchSize),
 		"batch size for hard deletion of soft-deleted resources")
 
+	cfgOTelEnabled := flag.Bool("otel-enabled",
+		env.Bool("OTEL_ENABLED", defaultOtelEnabled),
+		"enable OpenTelemetry metrics exporter")
+
+	cfgOTelExportInterval := flag.Duration("otel-export-interval",
+		env.Duration("OTEL_EXPORT_INTERVAL", defaultOtelExportInterval),
+		"OpenTelemetry metric export interval")
+
 	flag.Usage = func() {
 		fmt.Fprintln(flag.CommandLine.Output(), "Flags:")
 		flag.PrintDefaults()
@@ -139,6 +151,8 @@ func Setup() *Config {
 	cfg.PmDryRun = *cfgPmDryRun
 	cfg.SoftDeleteRetentionDays = *cfgSoftDeleteRetentionDays
 	cfg.SoftDeletePurgeBatchSize = *cfgSoftDeletePurgeBatchSize
+	cfg.OTelEnabled = *cfgOTelEnabled
+	cfg.OTelExportInterval = *cfgOTelExportInterval
 
 	cfg.Log = logutil.New(serviceName, cfg.Debug)
 

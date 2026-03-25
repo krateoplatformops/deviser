@@ -29,6 +29,7 @@ It ensures that historical event data is properly managed without manual interve
 - **Dry Run Mode** – Test cleanup without deleting data
 - **Embedded SQL Assets** – Stores schema and templates inside the binary
 - **Health Probes** – Kubernetes-friendly `/livez` and `/readyz` endpoints
+- **OpenTelemetry Metrics** – Exports service metrics via OTLP HTTP
 - **Graceful Shutdown** – Ensures no partial operations are performed during termination
 
 ## Partitioning Model
@@ -77,6 +78,53 @@ Configured via environment variables and flags:
 | `PM_TRIGGER_RATIO` | Quota trigger ratio | `0.75` |
 | `PM_TARGET_RATIO` | Quota target ratio | `0.60` |
 | `PM_DRY_RUN` | Enable dry-run mode | `false` |
+| `OTEL_ENABLED` | Enable OpenTelemetry metrics exporter | `true` |
+| `OTEL_EXPORT_INTERVAL` | OpenTelemetry metric export interval | `50s` |
+
+OpenTelemetry exporter endpoint/protocol can be controlled with standard environment variables, for example:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT`
+- `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`
+
+## OpenTelemetry Metrics Usage
+
+`deviser` exports metrics with OTLP HTTP when:
+
+- `OTEL_ENABLED=true`
+- `OTEL_EXPORTER_OTLP_ENDPOINT` (or `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`) points to an OpenTelemetry Collector
+
+Recommended flow:
+
+1. `deviser` sends metrics to OpenTelemetry Collector (OTLP HTTP, usually port `4318`)
+2. Collector exports metrics to Prometheus-compatible backend
+3. Visualize in Grafana (or query directly in Prometheus)
+
+Typical Helm config example:
+
+```yaml
+config:
+  OTEL_ENABLED: "true"
+  OTEL_EXPORT_INTERVAL: "50s"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.monitoring.svc.cluster.local:4318"
+```
+
+Some useful metric names to chart:
+
+- `deviser.startup.success`
+- `deviser.startup.failure`
+- `deviser.db.connect.duration_seconds`
+- `deviser.db.schema_apply.duration_seconds`
+- `deviser.partitions.ensure.duration_seconds`
+- `deviser.partitions.maintain.duration_seconds`
+- `deviser.resources.purge.duration_seconds`
+- `deviser.resources.purge.rows`
+- `deviser.loop.iteration.success`
+- `deviser.loop.iteration.failure`
+
+Notes:
+
+- If `OTEL_ENABLED=false`, no metrics are exported.
+- This service does not expose a Prometheus `/metrics` endpoint directly; metrics are exported via OTLP.
 
 
 ## How It Works

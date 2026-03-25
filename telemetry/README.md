@@ -4,6 +4,7 @@ This folder contains ready-to-use telemetry assets for `deviser`:
 
 - `dashboards/deviser-overview.dashboard.json`: Grafana dashboard with example panels
 - `collector/otel-collector-config.yaml`: minimal OpenTelemetry Collector config (OTLP HTTP -> Prometheus endpoint)
+- `metrics-reference.md`: full metric catalog (type, meaning, examples)
 
 ## Prerequisites
 

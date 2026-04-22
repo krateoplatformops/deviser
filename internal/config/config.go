@@ -12,8 +12,8 @@ import (
 	"time"
 
 	fsutil "github.com/krateoplatformops/deviser/internal/util/fs"
-	logutil "github.com/krateoplatformops/deviser/internal/util/log"
 	"github.com/krateoplatformops/plumbing/env"
+	"github.com/krateoplatformops/plumbing/logger"
 	"github.com/krateoplatformops/plumbing/pgutil"
 )
 
@@ -154,7 +154,7 @@ func Setup() *Config {
 	cfg.OTelEnabled = *cfgOTelEnabled
 	cfg.OTelExportInterval = *cfgOTelExportInterval
 
-	cfg.Log = logutil.New(serviceName, cfg.Debug)
+	cfg.Log = logger.New(serviceName, cfg.Debug)
 
 	params, err := parseDBParams(*cfgDbParams)
 	if err != nil {

@@ -1,10 +1,10 @@
 module github.com/krateoplatformops/deviser
 
-go 1.25.3
+go 1.26.1
 
 require (
-	github.com/jackc/pgx/v5 v5.8.0
-	github.com/krateoplatformops/plumbing v1.3.1
+	github.com/jackc/pgx/v5 v5.9.0
+	github.com/krateoplatformops/plumbing v1.8.1
 	go.opentelemetry.io/otel v1.42.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.42.0
 	go.opentelemetry.io/otel/metric v1.42.0
@@ -31,6 +31,6 @@ require (
 	golang.org/x/text v0.34.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260209200024-4cfbd4190f57 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260209200024-4cfbd4190f57 // indirect
-	google.golang.org/grpc v1.79.2 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )

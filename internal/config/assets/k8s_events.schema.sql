@@ -2,8 +2,11 @@
 -- Table: k8s_events (partitioned by created_at)
 -- ============================================================
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE IF NOT EXISTS k8s_events (
     created_at       TIMESTAMPTZ NOT NULL,
+    event_id         UUID NOT NULL DEFAULT gen_random_uuid(),
 
     -- Identità cluster / resource
     cluster_name     TEXT NOT NULL,
@@ -39,7 +42,13 @@ PARTITION BY RANGE (created_at);
 CREATE OR REPLACE FUNCTION notify_new_event()
 RETURNS TRIGGER AS $$
 BEGIN
-    PERFORM pg_notify('events', NEW.global_uid);
+    PERFORM pg_notify(
+        'events',
+        json_build_object(
+            'event_id', NEW.event_id,
+            'global_uid', NEW.global_uid
+        )::text
+    );
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

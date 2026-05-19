@@ -71,6 +71,21 @@ func main() {
 		}
 	}
 
+	migrationAssets := cfg.MustLoadMigrations()
+	migrations := make([]pg.Migration, 0, len(migrationAssets))
+	for _, migration := range migrationAssets {
+		migrations = append(migrations, pg.Migration{
+			Version: migration.Version,
+			SQL:     migration.SQL,
+		})
+	}
+
+	if err := pg.ApplyMigrations(rootCtx, pool, cfg.Log, migrations); err != nil {
+		metrics.IncStartupFailure(rootCtx)
+		cfg.Log.Error("database migrations failed", slog.Any("err", err))
+		os.Exit(1)
+	}
+
 	// -----------------------------
 	// Partition management loop
 	// -----------------------------

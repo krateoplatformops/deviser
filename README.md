@@ -28,6 +28,7 @@ It ensures that historical event data is properly managed without manual interve
 - **Quota Management** – Keeps total partition size under a configurable maximum
 - **Dry Run Mode** – Test cleanup without deleting data
 - **Embedded SQL Assets** – Stores schema and templates inside the binary
+- **Embedded Migrations** – Evolves existing databases with ordered SQL migrations
 - **Health Probes** – Kubernetes-friendly `/livez` and `/readyz` endpoints
 - **OpenTelemetry Metrics** – Exports service metrics via OTLP HTTP
 - **Graceful Shutdown** – Ensures no partial operations are performed during termination
@@ -130,19 +131,32 @@ Notes:
 ## How It Works
 
 1. On startup, waits for PostgreSQL to be ready
-2. Executes initial schema SQL (`schema.sql`)
-3. Loads SQL templates (`partition.tpl.sql`) for partition management
-4. Launches:
+2. Executes base schema SQL (`k8s_events.schema.sql`, `resources.schema.sql`)
+3. Applies embedded migrations from `internal/config/assets/migrations/` in lexicographic order
+4. Loads SQL templates (`partition.tpl.sql`) for partition management
+5. Launches:
 
    - **Daily partition creation loop** (runs every hour)
    - **Partition manager** to drop expired partitions and enforce size quotas
    - **Health probe server** on configured port
 
-5. On shutdown:
+6. On shutdown:
 
    - Stops loops gracefully
    - Closes DB connections
    - Exits cleanly
+
+Base schemas are idempotent bootstrap assets for new databases. Migrations are also embedded in the binary and are recorded in `schema_migrations` after they succeed, so restarts do not rerun already applied files.
+
+`k8s_events.event_id` is a database-generated UUID that identifies the specific event row for realtime consumers. The `notify_new_event()` trigger now publishes JSON on PostgreSQL channel `events`:
+
+```json
+{"event_id":"...","global_uid":"..."}
+```
+
+This lets SSE consumers fetch the exact row that generated the notification while still carrying `global_uid` for resource context.
+
+The first migration backfills `event_id` on existing rows with a single `UPDATE`. On very large historical tables this can take time and hold locks during startup; for high-volume installations, run an equivalent batched/offline backfill before enforcing `NOT NULL`.
 
 
 ## Health Probes

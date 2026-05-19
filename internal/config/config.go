@@ -4,9 +4,11 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -28,8 +30,13 @@ const (
 	defaultOtelExportInterval       = 30 * time.Second
 )
 
-//go:embed assets/*.sql
+//go:embed assets/*.sql assets/migrations/*.sql
 var assetsFS embed.FS
+
+type MigrationAsset struct {
+	Version string
+	SQL     string
+}
 
 type Config struct {
 	Port                     int
@@ -207,6 +214,25 @@ func (c *Config) LoadSQL(filename string) (string, error) {
 	return string(content), nil
 }
 
+func (c *Config) LoadMigrations() ([]MigrationAsset, error) {
+	migrations, err := loadMigrations(assetsFS)
+	if err != nil {
+		c.Log.Error("cannot load embedded migrations", slog.Any("err", err))
+		return nil, err
+	}
+
+	return migrations, nil
+}
+
+func (c *Config) MustLoadMigrations() []MigrationAsset {
+	migrations, err := c.LoadMigrations()
+	if err != nil {
+		os.Exit(1)
+	}
+
+	return migrations
+}
+
 func (c *Config) MustLoadSQLTemplate(filename, tplID string) *template.Template {
 	res, err := c.LoadSQLTemplate(filename, tplID)
 	if err != nil {
@@ -230,4 +256,35 @@ func (c *Config) LoadSQLTemplate(filename, tplID string) (*template.Template, er
 	}
 
 	return tpl, nil
+}
+
+func loadMigrations(fsys fs.FS) ([]MigrationAsset, error) {
+	entries, err := fs.ReadDir(fsys, "assets/migrations")
+	if err != nil {
+		return nil, err
+	}
+
+	migrations := make([]MigrationAsset, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+
+		filename := path.Join("assets/migrations", entry.Name())
+		content, err := fs.ReadFile(fsys, filename)
+		if err != nil {
+			return nil, err
+		}
+
+		migrations = append(migrations, MigrationAsset{
+			Version: strings.TrimSuffix(entry.Name(), ".sql"),
+			SQL:     string(content),
+		})
+	}
+
+	sort.Slice(migrations, func(i, j int) bool {
+		return migrations[i].Version < migrations[j].Version
+	})
+
+	return migrations, nil
 }

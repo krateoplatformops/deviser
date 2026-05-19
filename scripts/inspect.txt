@@ -1,0 +1,13 @@
+kubectl -n demo-system exec -it deployment/postgres -- \
+  psql -U test -d testdb -c "
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_name = 'k8s_events'
+ORDER BY ordinal_position;
+"
+
+## Show Migrations
+
+kubectl -n demo-system exec -it deployment/postgres -- \
+  psql -U test -d testdb -c "SELECT pg_get_functiondef('notify_new_event'::regproc);"
+  

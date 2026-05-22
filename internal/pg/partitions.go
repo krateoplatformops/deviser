@@ -22,6 +22,8 @@ type CreateDailyPartitionsOptions struct {
 	Metrics *telemetry.Metrics
 }
 
+const partitionTimestampLayout = "2006-01-02 15:04:05-07"
+
 func CreateDailyPartitions(ctx context.Context, opts *CreateDailyPartitionsOptions) (retErr error) {
 	started := time.Now()
 	opts.Metrics.SetPartitionsEnsureDays(int64(opts.Days))
@@ -32,17 +34,17 @@ func CreateDailyPartitions(ctx context.Context, opts *CreateDailyPartitionsOptio
 		}
 	}()
 
+	today := startOfUTCDay(time.Now())
 	for i := 0; i < opts.Days; i++ {
-		date := time.Now().AddDate(0, 0, i).UTC()
-		partName := fmt.Sprintf("k8s_events_%04d_%02d_%02d", date.Year(), date.Month(), date.Day())
-		startDate := date.Format("2006-01-02")
-		endDate := date.AddDate(0, 0, 1).Format("2006-01-02")
+		start := today.AddDate(0, 0, i)
+		end := start.AddDate(0, 0, 1)
+		partName := fmt.Sprintf("k8s_events_%04d_%02d_%02d", start.Year(), start.Month(), start.Day())
 
 		var sb strings.Builder
 		err := opts.Tpl.Execute(&sb, map[string]string{
 			"PartitionName": partName,
-			"StartDate":     startDate,
-			"EndDate":       endDate,
+			"StartDate":     start.Format(partitionTimestampLayout),
+			"EndDate":       end.Format(partitionTimestampLayout),
 		})
 		if err != nil {
 			opts.Log.Error("failed to execute partition template",
@@ -62,6 +64,11 @@ func CreateDailyPartitions(ctx context.Context, opts *CreateDailyPartitionsOptio
 	}
 
 	return nil
+}
+
+func startOfUTCDay(t time.Time) time.Time {
+	t = t.UTC()
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 func MustLoadPartitionTemplate(fs *embed.FS, log *slog.Logger) *template.Template {

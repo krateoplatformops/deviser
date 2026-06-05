@@ -1,4 +1,5 @@
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- gen_random_uuid() is a native core function since PostgreSQL 13:
+-- no extension (pgcrypto) and no CREATE EXTENSION privilege required.
 
 ALTER TABLE k8s_events
 ADD COLUMN IF NOT EXISTS event_id UUID DEFAULT gen_random_uuid();

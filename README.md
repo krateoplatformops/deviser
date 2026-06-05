@@ -53,9 +53,9 @@ It ensures that historical event data is properly managed without manual interve
 ## Requirements
 
 - Kubernetes cluster (optional; service can run outside of cluster)
-- PostgreSQL database
+- PostgreSQL **13 or later** (uses the native `gen_random_uuid()` function; no extensions required)
 - Network connectivity to the database
-- Appropriate database privileges for partition creation and table management
+- Appropriate database privileges for partition creation and table management (DDL: tables, indexes, triggers, functions). Superuser access or `CREATE EXTENSION` privileges are **not** required.
 
 
 ## Configuration
@@ -167,6 +167,11 @@ The first migration backfills `event_id` on existing rows with a single `UPDATE`
 | `/readyz` | Readiness probe (database reachable, partitions ready) |
 
 > These endpoints are suitable for Kubernetes `livenessProbe` and `readinessProbe`.
+
+
+## Testing
+
+See [TESTING.md](TESTING.md) for the test layers (unit, integration against real PostgreSQL, end-to-end on kind), how to run them locally, and the conventions for adding new tests.
 
 
 ## Deployment Notes

@@ -34,3 +34,5 @@ experiments/**
 **/token.txt
 **/*.crt
 **/*.key
+
+.claude

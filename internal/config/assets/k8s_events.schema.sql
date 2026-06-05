@@ -2,7 +2,8 @@
 -- Table: k8s_events (partitioned by created_at)
 -- ============================================================
 
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- gen_random_uuid() is a native core function since PostgreSQL 13:
+-- no extension (pgcrypto) and no CREATE EXTENSION privilege required.
 
 CREATE TABLE IF NOT EXISTS k8s_events (
     created_at       TIMESTAMPTZ NOT NULL,

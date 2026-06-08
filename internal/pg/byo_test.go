@@ -56,15 +56,83 @@ func TestBYOPostgres(t *testing.T) {
 	testcontainers.SkipIfProviderIsNotHealthy(t)
 
 	images := []string{
-		"postgres:13-alpine", // minimum supported version (first with native gen_random_uuid)
-		"postgres:17-alpine", // reference version for external/bring-your-own PostgreSQL
-		"postgres:18-alpine", // CNPG default version
+		"postgres:13-alpine",   // minimum supported version (first with native gen_random_uuid)
+		"postgres:17.2-alpine", // pinned patch release, exact-version coverage
+		"postgres:17-alpine",   // latest 17.x patch release
+		"postgres:18-alpine",   // CNPG default version
 	}
 
 	for _, image := range images {
 		t.Run(image, func(t *testing.T) {
 			byoScenarios(t, image)
 		})
+	}
+}
+
+// TestBYOPostgresBelowMinimumVersion documents the PostgreSQL 13 floor:
+// on 12.x gen_random_uuid() is not a core function, so the schema bootstrap
+// must fail even with full database ownership. The provisioning uses the
+// documented db-owner setup on purpose, so the failure is attributable to
+// the missing function and not to privileges.
+func TestBYOPostgresBelowMinimumVersion(t *testing.T) {
+	testcontainers.SkipIfProviderIsNotHealthy(t)
+
+	ctx := context.Background()
+
+	// Latest (final) 12.x patch release; PostgreSQL 12 is EOL.
+	container, err := tcpostgres.Run(ctx, "postgres:12-alpine",
+		tcpostgres.WithDatabase("postgres"),
+		tcpostgres.WithUsername("postgres"),
+		tcpostgres.WithPassword("postgres"),
+		tcpostgres.BasicWaitStrategies(),
+	)
+	testcontainers.CleanupContainer(t, container)
+	if err != nil {
+		t.Fatalf("start postgres container: %v", err)
+	}
+
+	host, err := container.Host(ctx)
+	if err != nil {
+		t.Fatalf("container host: %v", err)
+	}
+	mappedPort, err := container.MappedPort(ctx, "5432/tcp")
+	if err != nil {
+		t.Fatalf("container mapped port: %v", err)
+	}
+	port := mappedPort.Int()
+
+	adminPool, err := pgxpool.New(ctx, mustConnectionURL(t, "postgres", "postgres", host, port, "postgres"))
+	if err != nil {
+		t.Fatalf("connect as admin: %v", err)
+	}
+	defer adminPool.Close()
+
+	execStatements(ctx, t, adminPool, byoDbOwnerSetupSQL)
+
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cfg := &config.Config{Log: log}
+
+	pool, err := pgxpool.New(ctx, mustConnectionURL(t, "krateo-db-user", "your_password", host, port, "krateo-db"))
+	if err != nil {
+		t.Fatalf("connect as application role: %v", err)
+	}
+	defer pool.Close()
+
+	sql, err := cfg.LoadSQL("k8s_events.schema.sql")
+	if err != nil {
+		t.Fatalf("load schema: %v", err)
+	}
+
+	_, err = pool.Exec(ctx, sql)
+	if err == nil {
+		t.Fatal("schema bootstrap succeeded on PostgreSQL 12; the documented minimum (13) would be wrong")
+	}
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != "42883" { // undefined_function
+		t.Fatalf("schema bootstrap error = %v, want SQLSTATE 42883 (gen_random_uuid does not exist)", err)
+	}
+	if !strings.Contains(pgErr.Message, "gen_random_uuid") {
+		t.Fatalf("error message %q does not mention gen_random_uuid", pgErr.Message)
 	}
 }
 

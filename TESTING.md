@@ -41,10 +41,10 @@ go test ./... -skip 'TestBYOPostgres'
 go test ./internal/pg -run TestBYOPostgres -count=1 -v
 ```
 
-The first run pulls the `postgres:13-alpine`, `postgres:17-alpine` and `postgres:18-alpine` images; subsequent runs reuse them. To pre-pull:
+The first run pulls the `postgres:12-alpine`, `postgres:13-alpine`, `postgres:17.2-alpine`, `postgres:17-alpine` and `postgres:18-alpine` images; subsequent runs reuse them. To pre-pull:
 
 ```sh
-docker pull postgres:13-alpine postgres:17-alpine postgres:18-alpine
+docker pull postgres:12-alpine postgres:13-alpine postgres:17.2-alpine postgres:17-alpine postgres:18-alpine
 ```
 
 A single version or scenario can be selected with the subtest path:
@@ -61,20 +61,21 @@ internal/config/migrations_test.go     embedded migration asset discovery and or
 internal/pg/migrations_test.go         migration apply/record logic (fake transaction, no DB)
 internal/pg/partitions_test.go         partition helpers
 internal/pg/partition_manager_test.go  partition bound parsing
-internal/pg/byo_test.go                integration: full lifecycle on real PostgreSQL
+internal/pg/byo_test.go                integration: full lifecycle on real PostgreSQL + minimum-version guard
 internal/pg/testdata/byo_*.sql         provisioning fixtures for the BYO scenarios
 ```
 
 ## The integration test: `TestBYOPostgres`
 
-`internal/pg/byo_test.go` verifies that the **exact provisioning SQL documented in the Bring Your Own PostgreSQL guide** is sufficient — and minimal — for everything deviser does at runtime. It runs a 3×3 matrix:
+`internal/pg/byo_test.go` verifies that the **exact provisioning SQL documented in the Bring Your Own PostgreSQL guide** is sufficient — and minimal — for everything deviser does at runtime. It runs a 4×3 matrix (versions × scenarios):
 
 ### PostgreSQL versions
 
 | Image | Why |
 |---|---|
 | `postgres:13-alpine` | Minimum supported version (first with native `gen_random_uuid()`) |
-| `postgres:17-alpine` | Reference version for external / bring-your-own PostgreSQL |
+| `postgres:17.2-alpine` | Pinned patch release, exact-version coverage |
+| `postgres:17-alpine` | Latest 17.x patch release |
 | `postgres:18-alpine` | CNPG default version |
 
 One container is started per version; each scenario provisions its own role and database inside it.
@@ -101,6 +102,14 @@ Each passing scenario executes, **as the application role only**, mirroring `mai
 8. Drop an expired partition via `PartitionManager.Maintain`
 9. Re-apply schemas and migrations (restart idempotency)
 10. Assert `pgcrypto` is **not** installed (guards against reintroducing the extension dependency)
+
+### Below-minimum version guard (must fail)
+
+`TestBYOPostgresBelowMinimumVersion` runs the schema bootstrap on `postgres:12-alpine` (the latest and final 12.x patch release, EOL) and asserts it **fails** with SQLSTATE `42883`: `gen_random_uuid()` is not a core function before PostgreSQL 13. It provisions with the documented db-owner setup on purpose, so the failure is attributable to the missing function and not to privileges. If this test ever starts passing, the documented minimum version claim must be revisited.
+
+```sh
+go test ./internal/pg -run TestBYOPostgresBelowMinimumVersion -count=1 -v
+```
 
 ### Keeping fixtures in sync with the documentation
 
@@ -150,6 +159,6 @@ Teardown:
 |---|---|
 | `SKIP ... Docker is not running` | Start Docker Desktop (or your daemon). Integration tests skip by design without it. |
 | Test reports `(cached)` and ignores your change | Re-run with `-count=1`. |
-| First integration run is slow or times out | Image pulls. Pre-pull the three `postgres:*-alpine` images, or raise `-timeout`. |
+| First integration run is slow or times out | Image pulls. Pre-pull the five `postgres:*-alpine` images, or raise `-timeout`. |
 | `permission denied for schema public` in a new scenario | Expected on PostgreSQL ≥ 15 unless the role owns the database or has `CREATE` on the schema — see the `grant-all-only` scenario. |
 | e2e script waits forever on the PostgreSQL rollout | Namespace mismatch — run with `POSTGRES_NAMESPACE=demo-system`. |

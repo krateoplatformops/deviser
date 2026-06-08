@@ -1,0 +1,18 @@
+components:
+  db-maintenance:
+    stepConfig:
+      install-deviser:
+        with:
+          values:
+            image:
+              repository: leovice/deviser # Point to your dev image registry
+              pullPolicy: Always
+              tag: "latest"
+  events-stack:
+    stepConfig:
+      install-events-ingester:
+        with:
+          version: 0.5.3
+      install-events-presenter:
+        with:
+          version: 0.9.3

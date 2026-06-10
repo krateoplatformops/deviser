@@ -9,6 +9,12 @@ import (
 	"github.com/krateoplatformops/deviser/internal/telemetry"
 )
 
+// defaultPurgeBatchSize is the fallback batch size used when a caller does not
+// supply a positive BatchSize. In production main.go always passes the
+// configured value (see config.defaultSoftDeletePurgeBatchSize); this guards
+// direct and test callers.
+const defaultPurgeBatchSize = 1000
+
 type PurgeDeletedResourcesOptions struct {
 	Pool          *pgxpool.Pool
 	Log           *slog.Logger
@@ -34,11 +40,12 @@ func PurgeDeletedResources(ctx context.Context, opts *PurgeDeletedResourcesOptio
 
 	batchSize := opts.BatchSize
 	if batchSize <= 0 {
-		batchSize = 1000
+		batchSize = defaultPurgeBatchSize
 	}
 
 	cutoff := time.Now().UTC().AddDate(0, 0, -opts.RetentionDays)
 
+	batches := 0
 	for {
 		result, err := opts.Pool.Exec(ctx, `
             DELETE FROM krateo_resources
@@ -57,10 +64,14 @@ func PurgeDeletedResources(ctx context.Context, opts *PurgeDeletedResourcesOptio
 		if err != nil {
 			opts.Log.Error("failed to purge soft-deleted resources",
 				slog.Any("err", err),
-				slog.Time("cutoff", cutoff))
+				slog.Time("cutoff", cutoff),
+				slog.Int64("rows_deleted", totalDeleted),
+				slog.Int("batches", batches),
+				slog.Int64("duration_ms", time.Since(started).Milliseconds()))
 			return totalDeleted, err
 		}
 
+		batches++
 		deleted := result.RowsAffected()
 		totalDeleted += deleted
 
@@ -69,11 +80,26 @@ func PurgeDeletedResources(ctx context.Context, opts *PurgeDeletedResourcesOptio
 		}
 	}
 
+	elapsed := time.Since(started)
+
+	// Nothing was eligible for hard deletion this cycle. This is the steady
+	// state (it runs hourly), so keep it at debug to avoid implying a purge
+	// happened when no rows were removed.
+	if totalDeleted == 0 {
+		opts.Log.Debug("soft-delete purge ran, no resources past retention",
+			slog.Int("retention_days", opts.RetentionDays),
+			slog.Time("cutoff", cutoff),
+			slog.Int64("duration_ms", elapsed.Milliseconds()))
+		return 0, nil
+	}
+
 	opts.Log.Info("purged soft-deleted resources",
-		slog.Int64("rows", totalDeleted),
+		slog.Int64("rows_deleted", totalDeleted),
+		slog.Int("batches", batches),
 		slog.Int("retention_days", opts.RetentionDays),
 		slog.Int("batch_size", batchSize),
-		slog.Time("cutoff", cutoff))
+		slog.Time("cutoff", cutoff),
+		slog.Int64("duration_ms", elapsed.Milliseconds()))
 
 	return totalDeleted, nil
 }

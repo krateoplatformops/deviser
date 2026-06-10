@@ -5,7 +5,7 @@ components:
         with:
           values:
             image:
-              repository: leovice/deviser # Point to your dev image registry
+              repository: <YOUR_DEV_IMAGE_REPO> # Point to your dev image registry
               pullPolicy: Always
               tag: "latest"
   events-stack:
